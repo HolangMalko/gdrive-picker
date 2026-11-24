@@ -18,7 +18,7 @@
         .lang-btn.active { background: #0284c7; color: #ffffff; border-color: #38bdf8; font-weight: bold; }
         .gdrive-btn { background: #4285F4; color: white; border: none; padding: 14px 20px; border-radius: 12px; font-weight: 700; font-size: 15px; cursor: pointer; width: 100%; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
         .gdrive-btn:hover { background: #3367D6; }
-        .status { margin-top: 15px; font-size: 13px; color: #38bdf8; font-weight: bold; }
+        .status { margin-top: 15px; font-size: 13px; color: #38bdf8; font-weight: bold; word-break: break-all; }
         .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #38bdf8; color: #0f172a; padding: 12px 24px; border-radius: 24px; font-size: 14px; font-weight: bold; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
         .toast.show { opacity: 1; }
 
@@ -54,7 +54,7 @@
         <button class="lang-btn" onclick="setLanguage('ja')" id="btn-ja">JA</button>
     </div>
 
-    <div class="card">
+    <div class="card" id="mainCard">
         <h1><span id="txt-icon">☁️</span> <span id="txt-title">Google Cloud 연동</span></h1>
         <p id="txt-desc">Google 계정으로 로그인하여 사진을 스마트 TV Neroa 액자로 연동합니다.</p>
 
@@ -69,9 +69,7 @@
 
     <script>
         const ONE_HOUR_MS = 60 * 60 * 1000;
-        // 앱과 동일한 올바른 파이어베이스 데이터베이스 주소
         const FIREBASE_DB_URL = "https://neroa-app-b5168-default-rtdb.asia-southeast1.firebasedatabase.app";
-        
         const urlParams = new URLSearchParams(window.location.search);
         const sourceMode = urlParams.get('source') || 'gdrive';
         const deviceId = urlParams.get('id') || '';
@@ -84,18 +82,18 @@
                 titlePhotos: "Google Photos 연동",
                 descDrive: "Google 계정으로 로그인하여 Google Drive 사진 및 폴더를 스마트 TV Neroa 액자로 연동합니다.",
                 descPhotos: "Google 계정으로 로그인하여 Google Photos 사진을 스마트 TV Neroa 액자로 연동합니다.",
-                btnDrive: "구글 로그인 & Drive 폴더/사진 선택",
+                btnDrive: "구글 로그인 & Drive 사진 선택",
                 btnPhotos: "구글 로그인 & Photos 사진 선택",
                 statusInit: "로그인 준비 중...",
-                statusSuccess: "개의 항목이 선택되었습니다. TV 액자로 전송 중...",
+                statusSuccess: "개의 사진이 선택되었습니다. TV 액자로 전송 중...",
                 toastDone: "TV 액자로 사진 전송 시작!"
             },
             en: {
                 titleDrive: "Google Drive Integration",
                 titlePhotos: "Google Photos Integration",
-                descDrive: "Sign in with Google to select Drive photos and folders for your Neroa Smart TV Frame.",
+                descDrive: "Sign in with Google to select Drive photos for your Neroa Smart TV Frame.",
                 descPhotos: "Sign in with Google to select Photos for your Neroa Smart TV Frame.",
-                btnDrive: "Sign in with Google & Select Folders/Photos",
+                btnDrive: "Sign in with Google & Select Photos",
                 btnPhotos: "Sign in with Google & Select Photos",
                 statusInit: "Preparing sign-in...",
                 statusSuccess: " items selected. Downloading to TV...",
@@ -106,7 +104,7 @@
                 titlePhotos: "Google フォト連携",
                 descDrive: "Google アカウントでログインし、Google ドライブの写真やフォルダをスマート TV Neroa フレームに連携します。",
                 descPhotos: "Google アカウントでログインし、Google フォトの写真をスマート TV Neroa フレームに連携します。",
-                btnDrive: "Google ログイン＆フォルダ・写真を選択",
+                btnDrive: "Google ログイン＆写真を選択",
                 btnPhotos: "Google ログイン＆フォト写真を選択",
                 statusInit: "ログイン準備中...",
                 statusSuccess: "個의 選択を完了しました。TVへ転送中...",
@@ -161,8 +159,8 @@
 
         function checkCachedSession() {
             try {
-                const cachedToken = localStorage.getItem('neroa_gdrive_token');
-                const cachedTime = localStorage.getItem('neroa_gdrive_token_time');
+                const cachedToken = localStorage.getItem('neroa_token_' + sourceMode);
+                const cachedTime = localStorage.getItem('neroa_token_time_' + sourceMode);
                 if (cachedToken && cachedTime) {
                     const elapsed = Date.now() - parseInt(cachedTime, 10);
                     if (elapsed < ONE_HOUR_MS) {
@@ -170,8 +168,8 @@
                         createGooglePicker();
                         return;
                     } else {
-                        localStorage.removeItem('neroa_gdrive_token');
-                        localStorage.removeItem('neroa_gdrive_token_time');
+                        localStorage.removeItem('neroa_token_' + sourceMode);
+                        localStorage.removeItem('neroa_token_time_' + sourceMode);
                     }
                 }
             } catch (e) {}
@@ -194,8 +192,8 @@
                             if (response && response.access_token) {
                                 oauthToken = response.access_token;
                                 try {
-                                    localStorage.setItem('neroa_gdrive_token', oauthToken);
-                                    localStorage.setItem('neroa_gdrive_token_time', Date.now().toString());
+                                    localStorage.setItem('neroa_token_' + sourceMode, oauthToken);
+                                    localStorage.setItem('neroa_token_time_' + sourceMode, Date.now().toString());
                                 } catch (e) {}
                                 createGooglePicker();
                             }
@@ -214,13 +212,15 @@
                     const viewWidth = window.innerWidth || document.documentElement.clientWidth || 800;
                     const viewHeight = window.innerHeight || document.documentElement.clientHeight || 600;
 
+                    // [핵심] 구글 권한 부여 필수 setAppId 추가 및 풀스크린 크기 지정
                     const pickerBuilder = new google.picker.PickerBuilder()
+                        .setAppId("453754840093")
                         .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
                         .setSize(viewWidth, viewHeight);
 
-                    const unifiedView = new google.picker.DocsView(google.picker.ViewId.DOCS)
+                    // 사진 전용 다중 선택 뷰 (폴더 선택 제외)
+                    const unifiedView = new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
                         .setIncludeFolders(true)
-                        .setSelectFolderEnabled(true)
                         .setMimeTypes("image/png,image/jpeg,image/jpg,image/webp,image/gif,image/heic");
 
                     pickerBuilder.addView(unifiedView);
@@ -241,7 +241,6 @@
                 const docs = data.docs || [];
                 const dict = i18n[currentLang] || i18n.ko;
                 setStatus(docs.length + dict.statusSuccess);
-                showToast(dict.toastDone);
 
                 const payload = {
                     secret: deviceSecret,
@@ -251,43 +250,34 @@
                     timestamp: Date.now()
                 };
 
-                const promises = [];
-
-                // 1. 파이어베이스 실시간 DB로 수신 신호 쓰기 (스마트 TV QR 연동 핵심)
-                if (deviceId) {
-                    const fbEndpoint = `${FIREBASE_DB_URL}/devices/${deviceId}/import.json`;
-                    promises.push(
-                        fetch(fbEndpoint, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        })
-                    );
+                if (!deviceId) {
+                    setStatus("오류: TV 식별자(deviceId)가 전달되지 않았습니다.");
+                    return;
                 }
 
-                // 2. 로컬 서버 IP 백업 전송 시도
-                if (targetUrl) {
-                    const localEndpoint = `${targetUrl}/api/gdrive_upload`;
-                    promises.push(
-                        fetch(localEndpoint, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                driveFiles: docs,
-                                accessToken: oauthToken,
-                                sourceMode: sourceMode
-                            })
-                        }).catch(() => {})
-                    );
-                }
+                const fbEndpoint = `${FIREBASE_DB_URL}/devices/${deviceId}/import.json`;
 
-                Promise.allSettled(promises).then(() => {
-                    setStatus("전송 완료! 슬라이드쇼가 시작됩니다.");
+                fetch(fbEndpoint, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).then(res => {
+                    if (!res.ok) {
+                        if (res.status === 401 || res.status === 403) {
+                            throw new Error("파이어베이스 쓰기 권한 오류 (401). Firebase 콘솔 규칙을 확인하세요.");
+                        }
+                        throw new Error("서버 응답 오류: " + res.status);
+                    }
+                    return res.json();
+                }).then(resData => {
+                    setStatus("TV 액자로 전송 성공! 슬라이드쇼가 시작됩니다.");
                     showToast(dict.toastDone);
                     setTimeout(() => {
                         try { window.location.href = "neroa://gdrive_complete"; } catch(e) {}
                         try { window.close(); } catch(e) {}
                     }, 1500);
+                }).catch(err => {
+                    setStatus("전송 실패: " + err.message);
                 });
             }
         }
