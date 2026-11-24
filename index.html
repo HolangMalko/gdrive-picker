@@ -215,17 +215,13 @@
                     const pickerBuilder = new google.picker.PickerBuilder()
                         .setAppId("453754840093")
                         .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
-                        .enableFeature(google.picker.Feature.NAV_HIDDEN)
                         .setSize(viewWidth, viewHeight);
 
-                    // [핵심] 격자 타일 모드(GRID) 및 폴더 클릭 닫기 방지 설정
-                    const unifiedView = new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
-                        .setMode(google.picker.DocsViewMode.GRID)
-                        .setIncludeFolders(true)
-                        .setSelectFolderEnabled(false)
+                    // [핵심] PhotosView 사용 (사진 전용 체크박스 다중 선택 뷰)
+                    const photosView = new google.picker.PhotosView()
                         .setMimeTypes("image/png,image/jpeg,image/jpg,image/webp,image/gif,image/heic");
 
-                    pickerBuilder.addView(unifiedView);
+                    pickerBuilder.addView(photosView);
 
                     const picker = pickerBuilder
                         .setOAuthToken(oauthToken)
