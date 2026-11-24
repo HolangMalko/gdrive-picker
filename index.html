@@ -22,7 +22,7 @@
         .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #38bdf8; color: #0f172a; padding: 12px 24px; border-radius: 24px; font-size: 14px; font-weight: bold; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
         .toast.show { opacity: 1; }
 
-        /* [핵심 1] Google Picker 강제 풀 스크린 오버라이드 CSS */
+        /* Google Picker 풀 스크린 오버라이드 CSS */
         .picker-dialog-bg {
             width: 100% !important;
             height: 100% !important;
@@ -69,9 +69,13 @@
 
     <script>
         const ONE_HOUR_MS = 60 * 60 * 1000;
+        // 앱과 동일한 올바른 파이어베이스 데이터베이스 주소
+        const FIREBASE_DB_URL = "https://neroa-app-b5168-default-rtdb.asia-southeast1.firebasedatabase.app";
+        
         const urlParams = new URLSearchParams(window.location.search);
         const sourceMode = urlParams.get('source') || 'gdrive';
-        // [핵심 3] TV/앱의 서버 IP 타겟 주소 취득
+        const deviceId = urlParams.get('id') || '';
+        const deviceSecret = urlParams.get('s') || '';
         const targetUrl = urlParams.get('target') || '';
 
         const i18n = {
@@ -101,11 +105,11 @@
                 titleDrive: "Google ドライブ連携",
                 titlePhotos: "Google フォト連携",
                 descDrive: "Google アカウントでログインし、Google ドライブの写真やフォルダをスマート TV Neroa フレームに連携します。",
-                descPhotos: "Google アカウントでログインし、Google フォトの写真をスマート TV Neroa フレームに連携합니다.",
+                descPhotos: "Google アカウントでログインし、Google フォトの写真をスマート TV Neroa フレームに連携します。",
                 btnDrive: "Google ログイン＆フォルダ・写真を選択",
                 btnPhotos: "Google ログイン＆フォト写真を選択",
                 statusInit: "ログイン準備中...",
-                statusSuccess: "個の選択を完了しました。TVへ転送中...",
+                statusSuccess: "個의 選択を完了しました。TVへ転送中...",
                 toastDone: "写真転送を開始しました！"
             }
         };
@@ -207,7 +211,6 @@
         function createGooglePicker() {
             if (pickerApiLoaded && oauthToken && window.google && google.picker) {
                 try {
-                    // [핵심 1] 풀 스크린 픽커 크기 설정
                     const viewWidth = window.innerWidth || document.documentElement.clientWidth || 800;
                     const viewHeight = window.innerHeight || document.documentElement.clientHeight || 600;
 
@@ -215,7 +218,6 @@
                         .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
                         .setSize(viewWidth, viewHeight);
 
-                    // [핵심 2] 통합 DocsView 생성 (폴더 + 사진을 한 뷰에서 함께 다중 선택 가능하도록 설정)
                     const unifiedView = new google.picker.DocsView(google.picker.ViewId.DOCS)
                         .setIncludeFolders(true)
                         .setSelectFolderEnabled(true)
@@ -241,26 +243,47 @@
                 setStatus(docs.length + dict.statusSuccess);
                 showToast(dict.toastDone);
 
-                // [핵심 3] TV IP 타겟 및 상대 경로 호환 처리
-                const endpoint = (targetUrl ? targetUrl : '') + '/api/gdrive_upload';
+                const payload = {
+                    secret: deviceSecret,
+                    sourceMode: sourceMode,
+                    files: docs,
+                    token: oauthToken,
+                    timestamp: Date.now()
+                };
 
-                fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        driveFiles: docs,
-                        accessToken: oauthToken,
-                        sourceMode: sourceMode
-                    })
-                }).then(res => res.json()).then(resData => {
+                const promises = [];
+
+                // 1. 파이어베이스 실시간 DB로 수신 신호 쓰기 (스마트 TV QR 연동 핵심)
+                if (deviceId) {
+                    const fbEndpoint = `${FIREBASE_DB_URL}/devices/${deviceId}/import.json`;
+                    promises.push(
+                        fetch(fbEndpoint, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        })
+                    );
+                }
+
+                // 2. 로컬 서버 IP 백업 전송 시도
+                if (targetUrl) {
+                    const localEndpoint = `${targetUrl}/api/gdrive_upload`;
+                    promises.push(
+                        fetch(localEndpoint, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                driveFiles: docs,
+                                accessToken: oauthToken,
+                                sourceMode: sourceMode
+                            })
+                        }).catch(() => {})
+                    );
+                }
+
+                Promise.allSettled(promises).then(() => {
                     setStatus("전송 완료! 슬라이드쇼가 시작됩니다.");
-                    // [핵심 4] 완료 후 앱으로 복귀(딥링크) 및 창 닫기 시도
-                    setTimeout(() => {
-                        try { window.location.href = "neroa://gdrive_complete"; } catch(e) {}
-                        try { window.close(); } catch(e) {}
-                    }, 1500);
-                }).catch(err => {
-                    setStatus("전송 완료! TV 슬라이드쇼를 확인해 주세요.");
+                    showToast(dict.toastDone);
                     setTimeout(() => {
                         try { window.location.href = "neroa://gdrive_complete"; } catch(e) {}
                         try { window.close(); } catch(e) {}
