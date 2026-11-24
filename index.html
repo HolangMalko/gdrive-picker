@@ -16,8 +16,14 @@
         .lang-bar { display: flex; justify-content: center; gap: 6px; margin-bottom: 12px; }
         .lang-btn { background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 4px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; transition: all 0.2s; }
         .lang-btn.active { background: #0284c7; color: #ffffff; border-color: #38bdf8; font-weight: bold; }
+        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
         .gdrive-btn { background: #4285F4; color: white; border: none; padding: 14px 20px; border-radius: 12px; font-weight: 700; font-size: 15px; cursor: pointer; width: 100%; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
         .gdrive-btn:hover { background: #3367D6; }
+        .add-btn { background: #334155; color: #38bdf8; border: 1px solid #38bdf8; padding: 12px 18px; border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; transition: background 0.2s; }
+        .add-btn:hover { background: #1e293b; }
+        .send-btn { background: #10b981; color: white; border: none; padding: 14px 20px; border-radius: 12px; font-weight: 700; font-size: 15px; cursor: pointer; width: 100%; transition: background 0.2s; }
+        .send-btn:hover { background: #059669; }
+        .count-badge { background: #0284c7; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; display: inline-block; margin-bottom: 12px; }
         .status { margin-top: 15px; font-size: 13px; color: #38bdf8; font-weight: bold; word-break: break-all; }
         .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #38bdf8; color: #0f172a; padding: 12px 24px; border-radius: 24px; font-size: 14px; font-weight: bold; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
         .toast.show { opacity: 1; }
@@ -58,9 +64,23 @@
         <h1><span id="txt-icon">☁️</span> <span id="txt-title">Google Cloud 연동</span></h1>
         <p id="txt-desc">Google 계정으로 로그인하여 사진을 스마트 TV Neroa 액자로 연동합니다.</p>
 
-        <button class="gdrive-btn" onclick="connectGoogleDrive()" id="txt-btn">
-            구글 로그인 & 사진 선택
-        </button>
+        <div id="selectionSummary" style="display: none;">
+            <div class="count-badge" id="txtCountBadge">현재 0장의 사진이 선택되었습니다</div>
+        </div>
+
+        <div class="btn-group">
+            <button class="gdrive-btn" onclick="connectGoogleDrive()" id="txt-btn">
+                구글 로그인 & 사진 선택
+            </button>
+
+            <button class="add-btn" onclick="addMorePhotos()" id="btnAddMore" style="display: none;">
+                ➕ 사진 더 선택하기
+            </button>
+
+            <button class="send-btn" onclick="sendToTv()" id="btnSendTv" style="display: none;">
+                🚀 선택한 사진 TV로 전송하기
+            </button>
+        </div>
 
         <div id="statusText" class="status"></div>
     </div>
@@ -84,8 +104,10 @@
                 descPhotos: "Google 계정으로 로그인하여 Google Photos 사진을 스마트 TV Neroa 액자로 연동합니다.",
                 btnDrive: "구글 로그인 & Drive 사진 선택",
                 btnPhotos: "구글 로그인 & Photos 사진 선택",
+                btnAddMore: "➕ 사진 더 선택하기",
+                btnSendTv: "🚀 선택한 사진 TV로 전송하기",
                 statusInit: "로그인 준비 중...",
-                statusSuccess: "개의 사진이 선택되었습니다. TV 액자로 전송 중...",
+                statusPicked: "장의 사진이 목록에 추가되었습니다.",
                 toastDone: "TV 액자로 사진 전송 시작!"
             },
             en: {
@@ -95,19 +117,23 @@
                 descPhotos: "Sign in with Google to select Photos for your Neroa Smart TV Frame.",
                 btnDrive: "Sign in with Google & Select Photos",
                 btnPhotos: "Sign in with Google & Select Photos",
+                btnAddMore: "➕ Select More Photos",
+                btnSendTv: "🚀 Send Selected Photos to TV",
                 statusInit: "Preparing sign-in...",
-                statusSuccess: " items selected. Downloading to TV...",
+                statusPicked: " photo(s) added to list.",
                 toastDone: "Photo transfer started!"
             },
             ja: {
                 titleDrive: "Google ドライブ連携",
                 titlePhotos: "Google フォト連携",
                 descDrive: "Google アカウントでログインし、Google ドライブの写真やフォルダをスマート TV Neroa フレームに連携します。",
-                descPhotos: "Google アカウントでログインし、Google フォト의 사진을 스마트 TV Neroa フレームに連携します。",
+                descPhotos: "Google アカウントでログインし、Google フォトの写真をスマート TV Neroa フレームに連携します。",
                 btnDrive: "Google ログイン＆写真を選択",
                 btnPhotos: "Google ログイン＆フォト写真を選択",
+                btnAddMore: "➕ 写真を 더 추가",
+                btnSendTv: "🚀 選択した写真をTVへ転送",
                 statusInit: "ログイン準備中...",
-                statusSuccess: "個의 選択を完了しました。TVへ転送中...",
+                statusPicked: "枚の写真がリストに追加されました。",
                 toastDone: "写真転送を開始しました！"
             }
         };
@@ -115,6 +141,7 @@
         let currentLang = 'ko';
         let oauthToken = null;
         let pickerApiLoaded = false;
+        let pickedDocs = [];
 
         function detectLang() {
             const navLang = (navigator.language || navigator.userLanguage || 'ko').toLowerCase();
@@ -135,6 +162,8 @@
             document.getElementById('txt-title').innerText = isPhotos ? dict.titlePhotos : dict.titleDrive;
             document.getElementById('txt-desc').innerText = isPhotos ? dict.descPhotos : dict.descDrive;
             document.getElementById('txt-btn').innerText = isPhotos ? dict.btnPhotos : dict.btnDrive;
+            document.getElementById('btnAddMore').innerText = dict.btnAddMore;
+            document.getElementById('btnSendTv').innerText = dict.btnSendTv;
         }
 
         function showToast(msg) {
@@ -146,6 +175,28 @@
 
         function setStatus(msg) {
             document.getElementById('statusText').innerText = msg;
+        }
+
+        function updatePickedUI() {
+            const count = pickedDocs.length;
+            const summaryDiv = document.getElementById('selectionSummary');
+            const countBadge = document.getElementById('txtCountBadge');
+            const mainBtn = document.getElementById('txt-btn');
+            const addBtn = document.getElementById('btnAddMore');
+            const sendBtn = document.getElementById('btnSendTv');
+
+            if (count > 0) {
+                summaryDiv.style.display = 'block';
+                countBadge.innerText = `현재 ${count}장의 사진이 선택되었습니다`;
+                mainBtn.style.display = 'none';
+                addBtn.style.display = 'block';
+                sendBtn.style.display = 'block';
+            } else {
+                summaryDiv.style.display = 'none';
+                mainBtn.style.display = 'block';
+                addBtn.style.display = 'none';
+                sendBtn.style.display = 'none';
+            }
         }
 
         function loadGooglePickerApi() {
@@ -165,7 +216,6 @@
                     const elapsed = Date.now() - parseInt(cachedTime, 10);
                     if (elapsed < ONE_HOUR_MS) {
                         oauthToken = cachedToken;
-                        createGooglePicker();
                         return;
                     } else {
                         localStorage.removeItem('neroa_token_' + sourceMode);
@@ -206,6 +256,14 @@
             }
         }
 
+        function addMorePhotos() {
+            if (oauthToken) {
+                createGooglePicker();
+            } else {
+                connectGoogleDrive();
+            }
+        }
+
         function createGooglePicker() {
             if (pickerApiLoaded && oauthToken && window.google && google.picker) {
                 try {
@@ -217,13 +275,13 @@
                         .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
                         .setSize(viewWidth, viewHeight);
 
-                    // [핵심] sourceMode에 따라 403 에러 없는 올바른 뷰 자동 선택
-                    const isPhotos = (sourceMode === 'gphotos');
-                    const targetView = isPhotos 
-                        ? new google.picker.PhotosView().setMimeTypes("image/png,image/jpeg,image/jpg,image/webp,image/gif,image/heic")
-                        : new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES).setMimeTypes("image/png,image/jpeg,image/jpg,image/webp,image/gif,image/heic");
+                    const unifiedView = new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
+                        .setMode(google.picker.DocsViewMode.GRID)
+                        .setIncludeFolders(true)
+                        .setSelectFolderEnabled(false)
+                        .setMimeTypes("image/png,image/jpeg,image/jpg,image/webp,image/gif,image/heic");
 
-                    pickerBuilder.addView(targetView);
+                    pickerBuilder.addView(unifiedView);
 
                     const picker = pickerBuilder
                         .setOAuthToken(oauthToken)
@@ -240,46 +298,64 @@
             if (data.action === google.picker.Action.PICKED) {
                 const docs = data.docs || [];
                 const dict = i18n[currentLang] || i18n.ko;
-                setStatus(docs.length + dict.statusSuccess);
 
-                const payload = {
-                    secret: deviceSecret,
-                    sourceMode: sourceMode,
-                    files: docs,
-                    token: oauthToken,
-                    timestamp: Date.now()
-                };
-
-                if (!deviceId) {
-                    setStatus("오류: TV 식별자(deviceId)가 전달되지 않았습니다.");
-                    return;
-                }
-
-                const fbEndpoint = `${FIREBASE_DB_URL}/devices/${deviceId}/import.json`;
-
-                fetch(fbEndpoint, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                }).then(res => {
-                    if (!res.ok) {
-                        if (res.status === 401 || res.status === 403) {
-                            throw new Error("파이어베이스 쓰기 권한 오류 (401). Firebase 콘솔 규칙을 확인하세요.");
-                        }
-                        throw new Error("서버 응답 오류: " + res.status);
+                docs.forEach(d => {
+                    if (!pickedDocs.some(p => p.id === d.id)) {
+                        pickedDocs.push(d);
                     }
-                    return res.json();
-                }).then(resData => {
-                    setStatus("TV 액자로 전송 성공! 슬라이드쇼가 시작됩니다.");
-                    showToast(dict.toastDone);
-                    setTimeout(() => {
-                        try { window.location.href = "neroa://gdrive_complete"; } catch(e) {}
-                        try { window.close(); } catch(e) {}
-                    }, 1500);
-                }).catch(err => {
-                    setStatus("전송 실패: " + err.message);
                 });
+
+                updatePickedUI();
+                setStatus(`${docs.length}${dict.statusPicked} (총 ${pickedDocs.length}장)`);
             }
+        }
+
+        function sendToTv() {
+            if (pickedDocs.length === 0) {
+                setStatus("선택된 사진이 없습니다.");
+                return;
+            }
+
+            const dict = i18n[currentLang] || i18n.ko;
+            setStatus(`총 ${pickedDocs.length}장의 사진을 TV 액자로 전송 중...`);
+
+            const payload = {
+                secret: deviceSecret,
+                sourceMode: sourceMode,
+                files: pickedDocs,
+                token: oauthToken,
+                timestamp: Date.now()
+            };
+
+            if (!deviceId) {
+                setStatus("오류: TV 식별자(deviceId)가 전달되지 않았습니다.");
+                return;
+            }
+
+            const fbEndpoint = `${FIREBASE_DB_URL}/devices/${deviceId}/import.json`;
+
+            fetch(fbEndpoint, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(res => {
+                if (!res.ok) {
+                    if (res.status === 401 || res.status === 403) {
+                        throw new Error("파이어베이스 쓰기 권한 오류 (401). Firebase 콘솔 규칙을 확인하세요.");
+                    }
+                    throw new Error("서버 응답 오류: " + res.status);
+                }
+                return res.json();
+            }).then(resData => {
+                setStatus("TV 액자로 전송 성공! 슬라이드쇼가 시작됩니다.");
+                showToast(dict.toastDone);
+                setTimeout(() => {
+                    try { window.location.href = "neroa://gdrive_complete"; } catch(e) {}
+                    try { window.close(); } catch(e) {}
+                }, 1500);
+            }).catch(err => {
+                setStatus("전송 실패: " + err.message);
+            });
         }
 
         window.addEventListener('load', () => {
