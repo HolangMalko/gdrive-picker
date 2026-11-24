@@ -53,34 +53,34 @@
             ko: {
                 titleDrive: "Google Drive 연동",
                 titlePhotos: "Google Photos 연동",
-                descDrive: "Google 계정으로 로그인하여 Google Drive 사진을 스마트 TV Neroa 액자로 연동합니다.",
+                descDrive: "Google 계정으로 로그인하여 Google Drive 사진 및 폴더를 스마트 TV Neroa 액자로 연동합니다.",
                 descPhotos: "Google 계정으로 로그인하여 Google Photos 사진을 스마트 TV Neroa 액자로 연동합니다.",
-                btnDrive: "구글 로그인 & Drive 사진 선택",
+                btnDrive: "구글 로그인 & Drive 폴더/사진 선택",
                 btnPhotos: "구글 로그인 & Photos 사진 선택",
                 statusInit: "로그인 준비 중...",
-                statusSuccess: "개의 사진이 선택되었습니다. TV 액자로 다운로드 전송 중...",
+                statusSuccess: "개의 사진/폴더가 선택되었습니다. TV 액자로 다운로드 전송 중...",
                 toastDone: "사진 TV 전송 시작!"
             },
             en: {
                 titleDrive: "Google Drive Integration",
                 titlePhotos: "Google Photos Integration",
-                descDrive: "Sign in with Google to select Drive photos for your Neroa Smart TV Frame.",
+                descDrive: "Sign in with Google to select Drive photos and folders for your Neroa Smart TV Frame.",
                 descPhotos: "Sign in with Google to select Photos for your Neroa Smart TV Frame.",
-                btnDrive: "Sign in with Google & Select Drive Photos",
+                btnDrive: "Sign in with Google & Select Folders/Photos",
                 btnPhotos: "Sign in with Google & Select Photos",
                 statusInit: "Preparing sign-in...",
-                statusSuccess: " photos selected. Downloading to TV...",
+                statusSuccess: " items selected. Downloading to TV...",
                 toastDone: "Photo transfer started!"
             },
             ja: {
                 titleDrive: "Google ドライブ連携",
                 titlePhotos: "Google フォト連携",
-                descDrive: "Google アカウントでログインし、Google ドライブの写真をスマート TV Neroa フレームに連携します。",
+                descDrive: "Google アカウントでログインし、Google ドライブの写真やフォルダをスマート TV Neroa フレームに連携します。",
                 descPhotos: "Google アカウントでログインし、Google フォトの写真をスマート TV Neroa フレームに連携します。",
-                btnDrive: "Google ログイン＆ドライブ写真を選択",
+                btnDrive: "Google ログイン＆フォルダ・写真を選択",
                 btnPhotos: "Google ログイン＆フォト写真を選択",
                 statusInit: "ログイン準備中...",
-                statusSuccess: "枚の写真を選択しました。TVへ転送中...",
+                statusSuccess: "個의 選択を完了しました。TVへ転送中...",
                 toastDone: "写真転送を開始しました！"
             }
         };
@@ -130,7 +130,6 @@
             }
         }
 
-        // 1시간 유효기간 세션 체크 (Auto Login)
         function checkCachedSession() {
             try {
                 const cachedToken = localStorage.getItem('neroa_gdrive_token');
@@ -183,18 +182,27 @@
         function createGooglePicker() {
             if (pickerApiLoaded && oauthToken && window.google && google.picker) {
                 try {
-                    const viewId = (sourceMode === 'gphotos')
-                        ? google.picker.ViewId.PHOTOS
-                        : google.picker.ViewId.DOCS_IMAGES;
+                    const isPhotos = (sourceMode === 'gphotos');
+                    const pickerBuilder = new google.picker.PickerBuilder()
+                        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED);
 
-                    // 이미지 다중 선택 모드 강제 고정
-                    const view = new google.picker.DocsView(viewId)
-                        .setSelectFolderEnabled(true)
-                        .setMimeTypes("image/png,image/jpeg,image/jpg,image/webp,image/gif");
+                    if (isPhotos) {
+                        const photoView = new google.picker.View(google.picker.ViewId.PHOTOS);
+                        pickerBuilder.addView(photoView);
+                    } else {
+                        // 구글 드라이브: 폴더 전용 뷰 및 이미지 뷰 모두 추가
+                        const foldersView = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+                            .setIncludeFolders(true)
+                            .setSelectFolderEnabled(true);
 
-                    const picker = new google.picker.PickerBuilder()
-                        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED) // 다중 선택 기능 강제 고정
-                        .addView(view)
+                        const imagesView = new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
+                            .setIncludeFolders(true)
+                            .setSelectFolderEnabled(true);
+
+                        pickerBuilder.addView(foldersView).addView(imagesView);
+                    }
+
+                    const picker = pickerBuilder
                         .setOAuthToken(oauthToken)
                         .setCallback(pickerCallback)
                         .build();
@@ -212,7 +220,6 @@
                 setStatus(docs.length + dict.statusSuccess);
                 showToast(dict.toastDone);
 
-                // 선택된 파일 목록 및 토큰을 TV 앱으로 전송
                 fetch('/api/gdrive_upload', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
