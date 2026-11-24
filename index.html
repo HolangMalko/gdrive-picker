@@ -22,7 +22,7 @@
         .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #38bdf8; color: #0f172a; padding: 12px 24px; border-radius: 24px; font-size: 14px; font-weight: bold; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
         .toast.show { opacity: 1; }
 
-        /* Google Picker 풀 스크린 오버라이드 CSS */
+        /* Full-screen override for Google Picker modal */
         .picker-dialog-bg {
             width: 100% !important;
             height: 100% !important;
@@ -80,7 +80,7 @@
             ko: {
                 titleDrive: "Google Drive 연동",
                 titlePhotos: "Google Photos 연동",
-                descDrive: "Google 계정으로 로그인하여 Google Drive 사진 및 폴더를 스마트 TV Neroa 액자로 연동합니다.",
+                descDrive: "Google 계정으로 로그인하여 Google Drive 사진을 스마트 TV Neroa 액자로 연동합니다.",
                 descPhotos: "Google 계정으로 로그인하여 Google Photos 사진을 스마트 TV Neroa 액자로 연동합니다.",
                 btnDrive: "구글 로그인 & Drive 사진 선택",
                 btnPhotos: "구글 로그인 & Photos 사진 선택",
@@ -103,7 +103,7 @@
                 titleDrive: "Google ドライブ連携",
                 titlePhotos: "Google フォト連携",
                 descDrive: "Google アカウントでログインし、Google ドライブの写真やフォルダをスマート TV Neroa フレームに連携します。",
-                descPhotos: "Google アカウントでログインし、Google フォトの写真をスマート TV Neroa フレームに連携します。",
+                descPhotos: "Google アカウントでログインし、Google フォト의 사진을 스마트 TV Neroa フレームに連携します。",
                 btnDrive: "Google ログイン＆写真を選択",
                 btnPhotos: "Google ログイン＆フォト写真を選択",
                 statusInit: "ログイン準備中...",
@@ -212,15 +212,17 @@
                     const viewWidth = window.innerWidth || document.documentElement.clientWidth || 800;
                     const viewHeight = window.innerHeight || document.documentElement.clientHeight || 600;
 
-                    // [핵심] 구글 권한 부여 필수 setAppId 추가 및 풀스크린 크기 지정
                     const pickerBuilder = new google.picker.PickerBuilder()
                         .setAppId("453754840093")
                         .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+                        .enableFeature(google.picker.Feature.NAV_HIDDEN)
                         .setSize(viewWidth, viewHeight);
 
-                    // 사진 전용 다중 선택 뷰 (폴더 선택 제외)
+                    // [핵심] 격자 타일 모드(GRID) 및 폴더 클릭 닫기 방지 설정
                     const unifiedView = new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
-                        .setIncludeFolders(false)
+                        .setMode(google.picker.DocsViewMode.GRID)
+                        .setIncludeFolders(true)
+                        .setSelectFolderEnabled(false)
                         .setMimeTypes("image/png,image/jpeg,image/jpg,image/webp,image/gif,image/heic");
 
                     pickerBuilder.addView(unifiedView);
