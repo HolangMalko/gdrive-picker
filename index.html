@@ -76,7 +76,7 @@
                 titleDrive: "Google ドライブ連携",
                 titlePhotos: "Google フォト連携",
                 descDrive: "Google アカウントでログインし、Google ドライブの写真をスマート TV Neroa フレームに連携します。",
-                descPhotos: "Google アカウントでログインし、Google フォトの写真をスマート TV Neroa フレーム에 連携します。",
+                descPhotos: "Google アカウントでログインし、Google フォトの写真をスマート TV Neroa フレームに連携します。",
                 btnDrive: "Google ログイン＆ドライブ写真を選択",
                 btnPhotos: "Google ログイン＆フォト写真を選択",
                 statusInit: "ログイン準備中...",
@@ -187,9 +187,13 @@
                         ? google.picker.ViewId.PHOTOS
                         : google.picker.ViewId.DOCS_IMAGES;
 
-                    const view = new google.picker.DocsView(viewId).setSelectFolderEnabled(true);
+                    // 이미지 다중 선택 모드 강제 고정
+                    const view = new google.picker.DocsView(viewId)
+                        .setSelectFolderEnabled(true)
+                        .setMimeTypes("image/png,image/jpeg,image/jpg,image/webp,image/gif");
+
                     const picker = new google.picker.PickerBuilder()
-                        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+                        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED) // 다중 선택 기능 강제 고정
                         .addView(view)
                         .setOAuthToken(oauthToken)
                         .setCallback(pickerCallback)
@@ -208,6 +212,7 @@
                 setStatus(docs.length + dict.statusSuccess);
                 showToast(dict.toastDone);
 
+                // 선택된 파일 목록 및 토큰을 TV 앱으로 전송
                 fetch('/api/gdrive_upload', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
