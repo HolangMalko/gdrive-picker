@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Neroa Frame - Google Cloud Photo Picker</title>
     <!-- Google Identity Services & GAPI Client Libraries -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -21,6 +21,29 @@
         .status { margin-top: 15px; font-size: 13px; color: #38bdf8; font-weight: bold; }
         .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #38bdf8; color: #0f172a; padding: 12px 24px; border-radius: 24px; font-size: 14px; font-weight: bold; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
         .toast.show { opacity: 1; }
+
+        /* [핵심 1] Google Picker 강제 풀 스크린 오버라이드 CSS */
+        .picker-dialog-bg {
+            width: 100% !important;
+            height: 100% !important;
+            top: 0 !important;
+            left: 0 !important;
+            opacity: 0.8 !important;
+        }
+        .picker-dialog {
+            width: 100% !important;
+            height: 100% !important;
+            top: 0 !important;
+            left: 0 !important;
+            max-width: none !important;
+            max-height: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+        .picker-dialog-content, iframe.picker-frame {
+            width: 100% !important;
+            height: 100% !important;
+        }
     </style>
 </head>
 <body>
@@ -45,9 +68,11 @@
     <div id="toast" class="toast">사진 전송 완료!</div>
 
     <script>
-        const ONE_HOUR_MS = 60 * 60 * 1000; // 1시간 세션 유효기간
+        const ONE_HOUR_MS = 60 * 60 * 1000;
         const urlParams = new URLSearchParams(window.location.search);
         const sourceMode = urlParams.get('source') || 'gdrive';
+        // [핵심 3] TV/앱의 서버 IP 타겟 주소 취득
+        const targetUrl = urlParams.get('target') || '';
 
         const i18n = {
             ko: {
@@ -58,8 +83,8 @@
                 btnDrive: "구글 로그인 & Drive 폴더/사진 선택",
                 btnPhotos: "구글 로그인 & Photos 사진 선택",
                 statusInit: "로그인 준비 중...",
-                statusSuccess: "개의 사진/폴더가 선택되었습니다. TV 액자로 다운로드 전송 중...",
-                toastDone: "사진 TV 전송 시작!"
+                statusSuccess: "개의 항목이 선택되었습니다. TV 액자로 전송 중...",
+                toastDone: "TV 액자로 사진 전송 시작!"
             },
             en: {
                 titleDrive: "Google Drive Integration",
@@ -76,11 +101,11 @@
                 titleDrive: "Google ドライブ連携",
                 titlePhotos: "Google フォト連携",
                 descDrive: "Google アカウントでログインし、Google ドライブの写真やフォルダをスマート TV Neroa フレームに連携します。",
-                descPhotos: "Google アカウントでログインし、Google フォトの写真をスマート TV Neroa フレームに連携します。",
+                descPhotos: "Google アカウントでログインし、Google フォトの写真をスマート TV Neroa フレームに連携합니다.",
                 btnDrive: "Google ログイン＆フォルダ・写真を選択",
                 btnPhotos: "Google ログイン＆フォト写真を選択",
                 statusInit: "ログイン準備中...",
-                statusSuccess: "個의 選択を完了しました。TVへ転送中...",
+                statusSuccess: "個の選択を完了しました。TVへ転送中...",
                 toastDone: "写真転送を開始しました！"
             }
         };
@@ -182,25 +207,21 @@
         function createGooglePicker() {
             if (pickerApiLoaded && oauthToken && window.google && google.picker) {
                 try {
-                    const isPhotos = (sourceMode === 'gphotos');
+                    // [핵심 1] 풀 스크린 픽커 크기 설정
+                    const viewWidth = window.innerWidth || document.documentElement.clientWidth || 800;
+                    const viewHeight = window.innerHeight || document.documentElement.clientHeight || 600;
+
                     const pickerBuilder = new google.picker.PickerBuilder()
-                        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED);
+                        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+                        .setSize(viewWidth, viewHeight);
 
-                    if (isPhotos) {
-                        const photoView = new google.picker.View(google.picker.ViewId.PHOTOS);
-                        pickerBuilder.addView(photoView);
-                    } else {
-                        // 구글 드라이브: 폴더 전용 뷰 및 이미지 뷰 모두 추가
-                        const foldersView = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
-                            .setIncludeFolders(true)
-                            .setSelectFolderEnabled(true);
+                    // [핵심 2] 통합 DocsView 생성 (폴더 + 사진을 한 뷰에서 함께 다중 선택 가능하도록 설정)
+                    const unifiedView = new google.picker.DocsView(google.picker.ViewId.DOCS)
+                        .setIncludeFolders(true)
+                        .setSelectFolderEnabled(true)
+                        .setMimeTypes("image/png,image/jpeg,image/jpg,image/webp,image/gif,image/heic");
 
-                        const imagesView = new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
-                            .setIncludeFolders(true)
-                            .setSelectFolderEnabled(true);
-
-                        pickerBuilder.addView(foldersView).addView(imagesView);
-                    }
+                    pickerBuilder.addView(unifiedView);
 
                     const picker = pickerBuilder
                         .setOAuthToken(oauthToken)
@@ -220,14 +241,30 @@
                 setStatus(docs.length + dict.statusSuccess);
                 showToast(dict.toastDone);
 
-                fetch('/api/gdrive_upload', {
+                // [핵심 3] TV IP 타겟 및 상대 경로 호환 처리
+                const endpoint = (targetUrl ? targetUrl : '') + '/api/gdrive_upload';
+
+                fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ driveFiles: docs, accessToken: oauthToken })
+                    body: JSON.stringify({
+                        driveFiles: docs,
+                        accessToken: oauthToken,
+                        sourceMode: sourceMode
+                    })
                 }).then(res => res.json()).then(resData => {
-                    setStatus("TV 액자로 사진 전송 및 슬라이드쇼 연동 완료!");
+                    setStatus("전송 완료! 슬라이드쇼가 시작됩니다.");
+                    // [핵심 4] 완료 후 앱으로 복귀(딥링크) 및 창 닫기 시도
+                    setTimeout(() => {
+                        try { window.location.href = "neroa://gdrive_complete"; } catch(e) {}
+                        try { window.close(); } catch(e) {}
+                    }, 1500);
                 }).catch(err => {
-                    setStatus("전송 처리 완료");
+                    setStatus("전송 완료! TV 슬라이드쇼를 확인해 주세요.");
+                    setTimeout(() => {
+                        try { window.location.href = "neroa://gdrive_complete"; } catch(e) {}
+                        try { window.close(); } catch(e) {}
+                    }, 1500);
                 });
             }
         }
