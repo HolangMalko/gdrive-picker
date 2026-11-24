@@ -127,7 +127,7 @@
                 titleDrive: "Google ドライブ連携",
                 titlePhotos: "Google フォト連携",
                 descDrive: "Google アカウントでログインし、Google ドライブの写真やフォルダをスマート TV Neroa フレームに連携します。",
-                descPhotos: "Google アカウントでログインし、Google フォトの写真をスマート TV Neroa フレームに連携します。",
+                descPhotos: "Google アカウントでログインし、Google フォト의 사진을 스마트 TV Neroa フレームに連携します。",
                 btnDrive: "Google ログイン＆写真を選択",
                 btnPhotos: "Google ログイン＆フォト写真を選択",
                 btnAddMore: "➕ 写真を 더 추가",
@@ -177,28 +177,6 @@
             document.getElementById('statusText').innerText = msg;
         }
 
-        function updatePickedUI() {
-            const count = pickedDocs.length;
-            const summaryDiv = document.getElementById('selectionSummary');
-            const countBadge = document.getElementById('txtCountBadge');
-            const mainBtn = document.getElementById('txt-btn');
-            const addBtn = document.getElementById('btnAddMore');
-            const sendBtn = document.getElementById('btnSendTv');
-
-            if (count > 0) {
-                summaryDiv.style.display = 'block';
-                countBadge.innerText = `현재 ${count}장의 사진이 선택되었습니다`;
-                mainBtn.style.display = 'none';
-                addBtn.style.display = 'block';
-                sendBtn.style.display = 'block';
-            } else {
-                summaryDiv.style.display = 'none';
-                mainBtn.style.display = 'block';
-                addBtn.style.display = 'none';
-                sendBtn.style.display = 'none';
-            }
-        }
-
         function loadGooglePickerApi() {
             if (window.gapi) {
                 gapi.load('picker', { callback: () => {
@@ -231,9 +209,8 @@
 
             if (window.google && google.accounts && google.accounts.oauth2) {
                 try {
-                    const reqScope = (sourceMode === 'gphotos')
-                        ? 'https://www.googleapis.com/auth/photopicker.mediaitems.readonly'
-                        : 'https://www.googleapis.com/auth/drive.file';
+                    // [핵심] 400 invalid_scope 에러 방지를 위해 승인된 단일 스코프 drive.file 로 통일
+                    const reqScope = 'https://www.googleapis.com/auth/drive.file';
 
                     const tokenClient = google.accounts.oauth2.initTokenClient({
                         client_id: '453754840093-reorb3fk0shem92jg137c7vahsfbt8tp.apps.googleusercontent.com',
@@ -273,7 +250,6 @@
                     const pickerBuilder = new google.picker.PickerBuilder()
                         .setAppId("453754840093")
                         .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
-                        .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
                         .setSize(viewWidth, viewHeight);
 
                     const unifiedView = new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
