@@ -217,11 +217,13 @@
                         .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
                         .setSize(viewWidth, viewHeight);
 
-                    // drive.file 권한과 100% 호환되는 DOCS_IMAGES 뷰
-                    const unifiedView = new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
-                        .setMimeTypes("image/png,image/jpeg,image/jpg,image/webp,image/gif,image/heic");
+                    // [핵심] sourceMode에 따라 403 에러 없는 올바른 뷰 자동 선택
+                    const isPhotos = (sourceMode === 'gphotos');
+                    const targetView = isPhotos 
+                        ? new google.picker.PhotosView().setMimeTypes("image/png,image/jpeg,image/jpg,image/webp,image/gif,image/heic")
+                        : new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES).setMimeTypes("image/png,image/jpeg,image/jpg,image/webp,image/gif,image/heic");
 
-                    pickerBuilder.addView(unifiedView);
+                    pickerBuilder.addView(targetView);
 
                     const picker = pickerBuilder
                         .setOAuthToken(oauthToken)
