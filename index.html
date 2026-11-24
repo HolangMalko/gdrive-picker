@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neroa Frame - Google Drive Direct Import</title>
+    <!-- Google Identity Services & GAPI Client Libraries -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: #0f172a; color: #f8fafc; padding: 20px; max-width: 500px; margin: 0 auto; text-align: center; }
+        .card { background: #1e293b; border-radius: 16px; padding: 24px; margin-top: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: 1px solid #334155; }
+        h1 { font-size: 20px; color: #38bdf8; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        p { font-size: 13px; color: #94a3b8; line-height: 1.5; margin-bottom: 20px; }
+        .lang-bar { display: flex; justify-content: center; gap: 6px; margin-bottom: 12px; }
+        .lang-btn { background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 4px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+        .lang-btn.active { background: #0284c7; color: #ffffff; border-color: #38bdf8; font-weight: bold; }
+        .gdrive-btn { background: #4285F4; color: white; border: none; padding: 14px 20px; border-radius: 12px; font-weight: 700; font-size: 15px; cursor: pointer; width: 100%; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .gdrive-btn:hover { background: #3367D6; }
+        .status { margin-top: 15px; font-size: 13px; color: #38bdf8; font-weight: bold; }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #38bdf8; color: #0f172a; padding: 12px 24px; border-radius: 24px; font-size: 14px; font-weight: bold; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+
+    <div class="lang-bar">
+        <button class="lang-btn" onclick="setLanguage('ko')" id="btn-ko">KO</button>
+        <button class="lang-btn" onclick="setLanguage('en')" id="btn-en">EN</button>
+        <button class="lang-btn" onclick="setLanguage('ja')" id="btn-ja">JA</button>
+    </div>
+
+    <div class="card">
+        <h1><svg width="24" height="24" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.501l5.85 10.15z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.5c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg> <span id="txt-title">Google Drive 연동</span></h1>
+        <p id="txt-desc">Google 계정으로 로그인하여 Google Drive 사진을 스마트 TV Neroa 액자로 연동합니다.</p>
+
+        <button class="gdrive-btn" onclick="connectGoogleDrive()" id="txt-btn">
+            구글 로그인 & Drive 사진 선택
+        </button>
+
+        <div id="statusText" class="status"></div>
+    </div>
+
+    <div id="toast" class="toast">Google Drive 사진 전송 완료!</div>
+
+    <script>
+        const i18n = {
+            ko: {
+                title: "Google Drive 연동",
+                desc: "Google 계정으로 로그인하여 Google Drive 사진을 스마트 TV Neroa 액자로 연동합니다.",
+                btn: "구글 로그인 & Drive 사진 선택",
+                statusInit: "Google Drive 로그인 준비 중...",
+                statusSuccess: "개의 Google Drive 사진 선택 완료!",
+                toastDone: "Google Drive 사진 전송 완료!"
+            },
+            en: {
+                title: "Google Drive Integration",
+                desc: "Sign in with your Google account to select Google Drive photos for your Neroa Smart TV Frame.",
+                btn: "Sign in with Google & Select Drive Photos",
+                statusInit: "Preparing Google Drive sign-in...",
+                statusSuccess: " Google Drive photos selected!",
+                toastDone: "Google Drive photos transfer complete!"
+            },
+            ja: {
+                title: "Google ドライブ連携",
+                desc: "Google アカウントでログインし、Google ドライブの写真をスマート TV Neroa フレームに連携します。",
+                btn: "Google ログイン＆ドライブ写真を選択",
+                statusInit: "Google ドライブのログインを準備中...",
+                statusSuccess: "枚の Google ドライブ写真を選択しました！",
+                toastDone: "Google ドライブの写真転送が完了しました！"
+            }
+        };
+
+        let currentLang = 'ko';
+        let oauthToken = null;
+        let pickerApiLoaded = false;
+
+        function detectLang() {
+            const navLang = (navigator.language || navigator.userLanguage || 'ko').toLowerCase();
+            if (navLang.startsWith('ja')) return 'ja';
+            if (navLang.startsWith('en')) return 'en';
+            return 'ko';
+        }
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById('btn-' + lang);
+            if (btn) btn.classList.add('active');
+
+            const dict = i18n[lang] || i18n.ko;
+            document.getElementById('txt-title').innerText = dict.title;
+            document.getElementById('txt-desc').innerText = dict.desc;
+            document.getElementById('txt-btn').innerText = dict.btn;
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function setStatus(msg) {
+            document.getElementById('statusText').innerText = msg;
+        }
+
+        function loadGooglePickerApi() {
+            if (window.gapi) {
+                gapi.load('picker', { callback: () => { pickerApiLoaded = true; } });
+            }
+        }
+
+        function connectGoogleDrive() {
+            const dict = i18n[currentLang] || i18n.ko;
+            setStatus(dict.statusInit);
+
+            if (window.google && google.accounts && google.accounts.oauth2) {
+                try {
+                    const tokenClient = google.accounts.oauth2.initTokenClient({
+                        client_id: '453754840093-5d8224es01qosrfgn9ku9fom8qmt464s.apps.googleusercontent.com',
+                        scope: 'https://www.googleapis.com/auth/drive.file',
+                        callback: (response) => {
+                            if (response && response.access_token) {
+                                oauthToken = response.access_token;
+                                createGooglePicker();
+                            }
+                        }
+                    });
+                    tokenClient.requestAccessToken({ prompt: 'consent' });
+                } catch (e) {
+                    setStatus("Error: " + e.message);
+                }
+            }
+        }
+
+        function createGooglePicker() {
+            if (pickerApiLoaded && oauthToken && window.google && google.picker) {
+                try {
+                    const view = new google.picker.View(google.picker.ViewId.DOCS_IMAGES);
+                    const picker = new google.picker.PickerBuilder()
+                        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+                        .addView(view)
+                        .setOAuthToken(oauthToken)
+                        .setCallback(pickerCallback)
+                        .build();
+                    picker.setVisible(true);
+                } catch (e) {
+                    setStatus("Picker Error: " + e.message);
+                }
+            }
+        }
+
+        function pickerCallback(data) {
+            if (data.action === google.picker.Action.PICKED) {
+                const docs = data.docs || [];
+                const dict = i18n[currentLang] || i18n.ko;
+                setStatus(docs.length + dict.statusSuccess);
+                showToast(dict.toastDone);
+            }
+        }
+
+        window.addEventListener('load', () => {
+            currentLang = detectLang();
+            setLanguage(currentLang);
+            loadGooglePickerApi();
+        });
+    </script>
+</body>
+</html>
