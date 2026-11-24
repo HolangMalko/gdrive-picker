@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neroa Frame - Google Drive Direct Import</title>
+    <title>Neroa Frame - Cloud Photo Picker</title>
     <!-- Google Identity Services & GAPI Client Libraries -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
@@ -32,43 +32,55 @@
     </div>
 
     <div class="card">
-        <h1><svg width="24" height="24" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.501l5.85 10.15z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.5c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg> <span id="txt-title">Google Drive 연동</span></h1>
-        <p id="txt-desc">Google 계정으로 로그인하여 Google Drive 사진을 스마트 TV Neroa 액자로 연동합니다.</p>
+        <h1><span id="txt-icon">☁️</span> <span id="txt-title">Google Cloud 연동</span></h1>
+        <p id="txt-desc">Google 계정으로 로그인하여 사진을 스마트 TV Neroa 액자로 연동합니다.</p>
 
         <button class="gdrive-btn" onclick="connectGoogleDrive()" id="txt-btn">
-            구글 로그인 & Drive 사진 선택
+            구글 로그인 & 사진 선택
         </button>
 
         <div id="statusText" class="status"></div>
     </div>
 
-    <div id="toast" class="toast">Google Drive 사진 전송 완료!</div>
+    <div id="toast" class="toast">사진 전송 완료!</div>
 
     <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const sourceMode = urlParams.get('source') || 'gdrive';
+
         const i18n = {
             ko: {
-                title: "Google Drive 연동",
-                desc: "Google 계정으로 로그인하여 Google Drive 사진을 스마트 TV Neroa 액자로 연동합니다.",
-                btn: "구글 로그인 & Drive 사진 선택",
-                statusInit: "Google Drive 로그인 준비 중...",
-                statusSuccess: "개의 Google Drive 사진 선택 완료!",
-                toastDone: "Google Drive 사진 전송 완료!"
+                titleDrive: "Google Drive 연동",
+                titlePhotos: "Google Photos 연동",
+                descDrive: "Google 계정으로 로그인하여 Google Drive 사진을 스마트 TV Neroa 액자로 연동합니다.",
+                descPhotos: "Google 계정으로 로그인하여 Google Photos 사진을 스마트 TV Neroa 액자로 연동합니다.",
+                btnDrive: "구글 로그인 & Drive 사진 선택",
+                btnPhotos: "구글 로그인 & Photos 사진 선택",
+                statusInit: "로그인 준비 중...",
+                statusSuccess: "개의 사진 선택 완료!",
+                toastDone: "사진 전송 완료!"
             },
             en: {
-                title: "Google Drive Integration",
-                desc: "Sign in with your Google account to select Google Drive photos for your Neroa Smart TV Frame.",
-                btn: "Sign in with Google & Select Drive Photos",
-                statusInit: "Preparing Google Drive sign-in...",
-                statusSuccess: " Google Drive photos selected!",
-                toastDone: "Google Drive photos transfer complete!"
+                titleDrive: "Google Drive Integration",
+                titlePhotos: "Google Photos Integration",
+                descDrive: "Sign in with Google to select Drive photos for your Neroa Smart TV Frame.",
+                descPhotos: "Sign in with Google to select Photos for your Neroa Smart TV Frame.",
+                btnDrive: "Sign in with Google & Select Drive Photos",
+                btnPhotos: "Sign in with Google & Select Photos",
+                statusInit: "Preparing sign-in...",
+                statusSuccess: " photos selected!",
+                toastDone: "Photo transfer complete!"
             },
             ja: {
-                title: "Google ドライブ連携",
-                desc: "Google アカウントでログインし、Google ドライブの写真をスマート TV Neroa フレームに連携します。",
-                btn: "Google ログイン＆ドライブ写真を選択",
-                statusInit: "Google ドライブのログインを準備中...",
-                statusSuccess: "枚の Google ドライブ写真を選択しました！",
-                toastDone: "Google ドライブの写真転送が完了しました！"
+                titleDrive: "Google ドライブ連携",
+                titlePhotos: "Google フォト連携",
+                descDrive: "Google アカウントでログインし、Google ドライブの写真をスマート TV Neroa フレームに連携します。",
+                descPhotos: "Google アカウント로 ログインし、Google フォトの写真をスマート TV Neroa フレームに連携します。",
+                btnDrive: "Google ログイン＆ドライブ写真を選択",
+                btnPhotos: "Google ログイン＆フォト写真を選択",
+                statusInit: "ログイン準備中...",
+                statusSuccess: "枚の写真を選択しました！",
+                toastDone: "写真転送が完了しました！"
             }
         };
 
@@ -90,9 +102,11 @@
             if (btn) btn.classList.add('active');
 
             const dict = i18n[lang] || i18n.ko;
-            document.getElementById('txt-title').innerText = dict.title;
-            document.getElementById('txt-desc').innerText = dict.desc;
-            document.getElementById('txt-btn').innerText = dict.btn;
+            const isPhotos = (sourceMode === 'gphotos');
+            document.getElementById('txt-icon').innerText = isPhotos ? '📸' : '☁️';
+            document.getElementById('txt-title').innerText = isPhotos ? dict.titlePhotos : dict.titleDrive;
+            document.getElementById('txt-desc').innerText = isPhotos ? dict.descPhotos : dict.descDrive;
+            document.getElementById('txt-btn').innerText = isPhotos ? dict.btnPhotos : dict.btnDrive;
         }
 
         function showToast(msg) {
@@ -118,9 +132,13 @@
 
             if (window.google && google.accounts && google.accounts.oauth2) {
                 try {
+                    const reqScope = (sourceMode === 'gphotos')
+                        ? 'https://www.googleapis.com/auth/photopicker.mediaitems.readonly'
+                        : 'https://www.googleapis.com/auth/drive.file';
+
                     const tokenClient = google.accounts.oauth2.initTokenClient({
                         client_id: '453754840093-reorb3fk0shem92jg137c7vahsfbt8tp.apps.googleusercontent.com',
-                        scope: 'https://www.googleapis.com/auth/drive.file',
+                        scope: reqScope,
                         callback: (response) => {
                             if (response && response.access_token) {
                                 oauthToken = response.access_token;
@@ -138,7 +156,11 @@
         function createGooglePicker() {
             if (pickerApiLoaded && oauthToken && window.google && google.picker) {
                 try {
-                    const view = new google.picker.View(google.picker.ViewId.DOCS_IMAGES);
+                    const viewId = (sourceMode === 'gphotos')
+                        ? google.picker.ViewId.PHOTOS
+                        : google.picker.ViewId.DOCS_IMAGES;
+
+                    const view = new google.picker.View(viewId);
                     const picker = new google.picker.PickerBuilder()
                         .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
                         .addView(view)
